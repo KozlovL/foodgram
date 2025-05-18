@@ -1,8 +1,8 @@
 from django.contrib import admin
-from django.db.models import Count
-
-from .models import (Favorite, Ingredient, Recipe, ShoppingCart, ShortLink,
-                     Subscription, Tag, User)
+from django.contrib.contenttypes.models import ContentType
+from recipes.constants import LIST_NAME_CHOICES
+from recipes.models import (Ingredient, Recipe, ShortLink, SpecialListModel,
+                            Tag, User)
 
 
 @admin.register(User)
@@ -48,39 +48,29 @@ class RecipeAdmin(admin.ModelAdmin):
     empty_value_display = '-пусто-'
 
     def favorites_count(self, obj):
-        return obj.favorites.count()
+        return SpecialListModel.objects.filter(
+            content_type=ContentType.objects.get_for_model(obj.__class__),
+            object_id=obj.id,
+            list_name=LIST_NAME_CHOICES[0]
+        ).count()
     favorites_count.short_description = 'В избранном'
 
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        return queryset.annotate(favorites_count=Count('favorites'))
 
-
-@admin.register(Favorite)
-class FavoriteAdmin(admin.ModelAdmin):
-    list_display = ('user', 'get_recipe')
-
-    def get_recipe(self, obj):
-        return obj.content_object
-    get_recipe.short_description = 'Рецепт'
-
-
-@admin.register(ShoppingCart)
-class ShoppingCartAdmin(admin.ModelAdmin):
-    list_display = ('user', 'get_recipe')
+@admin.register(SpecialListModel)
+class SpecialListAdmin(admin.ModelAdmin):
+    list_display = (
+        'user',
+        'get_recipe',
+        'get_user'
+    )
 
     def get_recipe(self, obj):
         return obj.content_object
     get_recipe.short_description = 'Рецепт'
 
-
-@admin.register(Subscription)
-class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'get_author')
-
-    def get_author(self, obj):
+    def get_user(self, obj):
         return obj.content_object
-    get_author.short_description = 'Автор'
+    get_user.short_description = 'Пользователь в подписках'
 
 
 @admin.register(ShortLink)

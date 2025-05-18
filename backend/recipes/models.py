@@ -5,10 +5,39 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from recipes.constants import (AVATAR_IMAGE_FOLDER, EMAIL_MAX_LENGTH,
-                               MEASUREMENT_UNIT_MAX_LENGTH, MIN_COOKING_TIME,
-                               NAME_MAX_LENGTH, NAME_STR_WIDTH,
-                               RECIPE_IMAGE_FOLDER, SHORT_LINK_MAX_LENGTH,
-                               TAG_SLUG_MAX_LENGTH)
+                               LIST_NAME_CHOICES, MEASUREMENT_UNIT_MAX_LENGTH,
+                               MIN_COOKING_TIME, NAME_MAX_LENGTH,
+                               NAME_STR_WIDTH, RECIPE_IMAGE_FOLDER,
+                               SHORT_LINK_MAX_LENGTH, TAG_SLUG_MAX_LENGTH)
+
+
+def toggle_special(
+    request,
+    instance,
+    list_name_choice,
+):
+    content_type = ContentType.objects.get_for_model(instance)
+    if request.method == 'POST':
+        object, created = SpecialListModel.objects.get_or_create(
+            user=request.user,
+            content_type=content_type,
+            object_id=instance.id,
+            list_name=list_name_choice,
+        )
+        if created:
+            return True
+        return False
+    else:
+        object = SpecialListModel.objects.filter(
+            user=request.user,
+            content_type=content_type,
+            object_id=instance.id,
+            list_name=list_name_choice,
+        )
+        if object.exists():
+            object.delete()
+            return True
+        return False
 
 
 class User(AbstractUser):
@@ -39,7 +68,7 @@ class User(AbstractUser):
         default=None,
         verbose_name='Аватар'
     )
-    subscriptions = GenericRelation('Subscription')
+    subscriptions = GenericRelation('SpecialListModel')
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -64,41 +93,27 @@ class SpecialListModel(models.Model):
         'content_type',
         'object_id'
     )
+    list_name = models.CharField(
+        max_length=128,
+        verbose_name='Название списка',
+        choices=LIST_NAME_CHOICES
+    )
 
     class Meta:
-        abstract = True
         ordering = ('-id',)
         constraints = [
             models.UniqueConstraint(
                 fields=[
                     'user',
                     'object_id',
-                    'content_type'
+                    'content_type',
+                    'list_name'
                 ],
                 name='unique_user_%(class)s_object_id'
             )
         ]
-
-
-class Favorite(SpecialListModel):
-
-    class Meta(SpecialListModel.Meta):
-        verbose_name = 'Избранное'
-        verbose_name_plural = 'Избранные'
-
-
-class Subscription(SpecialListModel):
-
-    class Meta(SpecialListModel.Meta):
-        verbose_name = 'Подписка'
-        verbose_name_plural = 'Подписки'
-
-
-class ShoppingCart(SpecialListModel):
-
-    class Meta(SpecialListModel.Meta):
-        verbose_name = 'Список покупок'
-        verbose_name_plural = 'Списки покупок'
+        verbose_name = 'Специальный список'
+        verbose_name_plural = 'Специальные списки'
 
 
 class NameModel(models.Model):
@@ -164,10 +179,10 @@ class Recipe(NameModel):
         verbose_name='Время приготовления'
     )
     favorites = GenericRelation(
-        'Favorite'
+        'SpecialListModel'
     )
     shopping_carts = GenericRelation(
-        'ShoppingCart'
+        'SpecialListModel'
     )
 
     class Meta(NameModel.Meta):

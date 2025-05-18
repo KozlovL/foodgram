@@ -1,20 +1,39 @@
 from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
-from recipes.models import (Favorite, Ingredient, IngredientRecipe, Recipe,
-                            ShoppingCart, Subscription, Tag, TagRecipe, User)
+from recipes.constants import (AVATAR_FIELD_NAME, IMAGE_FIELD_NAME,
+                               LIST_NAME_CHOICES)
+from recipes.filters import get_is_in_special_list
+from recipes.models import (Ingredient, IngredientRecipe, Recipe, Tag,
+                            TagRecipe, User)
 from rest_framework import serializers
 
 
-def absolute_url_representation(representation, serializer, image):
+def absolute_url_representation(representation, serializer, image_name):
     request = serializer.context['request']
-    image_url = representation[image]
-    representation[image] = request.build_absolute_uri(image_url)
+    image_url = representation[image_name]
+    representation[image_name] = request.build_absolute_uri(image_url)
     return representation
 
 
-class UserReadSerializer(serializers.ModelSerializer):
+class ToRepresentationImageSerializer(serializers.Serializer):
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        request = self.context['request']
+        image_url = representation.get(self.image_name)
+        if image_url:
+            representation[self.image_name] = request.build_absolute_uri(
+                image_url
+            )
+        return representation
+
+
+class UserReadSerializer(
+    serializers.ModelSerializer,
+    ToRepresentationImageSerializer,
+):
     is_subscribed = serializers.SerializerMethodField()
     avatar = Base64ImageField(required=False, allow_null=True)
+    image_name = AVATAR_FIELD_NAME
 
     class Meta:
         model = User
@@ -29,11 +48,11 @@ class UserReadSerializer(serializers.ModelSerializer):
         )
 
     def get_is_subscribed(self, user):
-        request_user = self.context.get('request').user
-        return request_user.is_authenticated and Subscription.objects.filter(
-            user=request_user,
-            object_id=user.id
-        ).exists()
+        return get_is_in_special_list(
+            object=user,
+            user=self.context['request'].user,
+            list_name_choice=LIST_NAME_CHOICES[1],
+        )
 
 
 class UserWriteSerializer(serializers.ModelSerializer):
@@ -57,7 +76,11 @@ class UserWriteSerializer(serializers.ModelSerializer):
         return user
 
 
-class SubscribeRecipeSerializer(serializers.ModelSerializer):
+class SubscribeRecipeSerializer(
+    serializers.ModelSerializer,
+    ToRepresentationImageSerializer,
+):
+    image_name = AVATAR_FIELD_NAME
 
     class Meta:
         model = Recipe
@@ -74,12 +97,11 @@ class SubscribeRecipeSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
-    def to_representation(self, user):
-        representation = super().to_representation(user)
-        return absolute_url_representation(representation, self, 'image')
 
-
-class SubscribeUserSerializer(UserReadSerializer):
+class SubscribeUserSerializer(
+    UserReadSerializer,
+):
+    image_name = AVATAR_FIELD_NAME
     recipes = SubscribeRecipeSerializer(
         many=True,
         read_only=True
@@ -101,13 +123,11 @@ class SubscribeUserSerializer(UserReadSerializer):
         )
 
     def get_is_subscribed(self, user):
-        request_user = self.context.get('request').user
-        if not request_user.is_authenticated:
-            return False
-        return Subscription.objects.filter(
-            user=request_user,
-            object_id=user.id
-        ).exists()
+        return get_is_in_special_list(
+            object=user,
+            user=self.context['request'].user,
+            list_name_choice=LIST_NAME_CHOICES[1],
+        )
 
     def to_representation(self, user):
         representation = super().to_representation(user)
@@ -116,19 +136,19 @@ class SubscribeUserSerializer(UserReadSerializer):
             representation['recipes'] = (
                 representation['recipes'][:int(recipes_limit)]
             )
-        return absolute_url_representation(representation, self, 'avatar')
+        return representation
 
 
-class AvatarSerializer(serializers.ModelSerializer):
+class AvatarSerializer(
+    serializers.ModelSerializer,
+    ToRepresentationImageSerializer,
+):
+    image_name = AVATAR_FIELD_NAME
     avatar = Base64ImageField()
 
     class Meta:
         model = User
         fields = ('avatar',)
-
-    def to_representation(self, user):
-        representation = super().to_representation(user)
-        return absolute_url_representation(representation, self, 'avatar')
 
 
 class PasswordSerializer(serializers.Serializer):
@@ -205,7 +225,11 @@ class IngredientRecipeWriteSerializer(serializers.ModelSerializer):
         )
 
 
-class RecipeReadSerializer(serializers.ModelSerializer):
+class RecipeReadSerializer(
+    serializers.ModelSerializer,
+    ToRepresentationImageSerializer,
+):
+    image_name = IMAGE_FIELD_NAME
     author = UserReadSerializer(read_only=True)
     tags = TagSerializer(
         many=True,
@@ -236,22 +260,18 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         )
 
     def get_is_favorited(self, recipe):
-        user = self.context['request'].user
-        return user.is_authenticated and Favorite.objects.filter(
-            user=user,
-            object_id=recipe.id
-        ).exists()
+        return get_is_in_special_list(
+            object=recipe,
+            user=self.context['request'].user,
+            list_name_choice=LIST_NAME_CHOICES[0],
+        )
 
     def get_is_in_shopping_cart(self, recipe):
-        user = self.context['request'].user
-        return user.is_authenticated and ShoppingCart.objects.filter(
-            user=user,
-            object_id=recipe.id
-        ).exists()
-
-    def to_representation(self, recipe):
-        representation = super().to_representation(recipe)
-        return absolute_url_representation(representation, self, 'image')
+        return get_is_in_special_list(
+            object=recipe,
+            user=self.context['request'].user,
+            list_name_choice=LIST_NAME_CHOICES[2],
+        )
 
 
 class RecipeWriteSerializer(serializers.ModelSerializer):
@@ -275,11 +295,6 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             'text',
             'cooking_time',
         )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.context['request'].method == 'PATCH':
-            self.fields['image'].required = False
 
     def validate(self, data):
         tags = data.get('tags')
@@ -321,10 +336,30 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             })
         return data
 
-    def create(self, validated_data):
+    def create_or_update(self, validated_data, recipe=None):
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('ingredientrecipe_set')
-        recipe = Recipe.objects.create(**validated_data)
+        if recipe:
+            for attr, value in validated_data.items():
+                setattr(recipe, attr, value)
+            recipe.save()
+            current_tags = (
+                TagRecipe.objects.filter(recipe_id=recipe.id)
+            )
+            for current_tag in current_tags:
+                if current_tag.tag.id not in tags:
+                    current_tag.delete()
+            current_ingredients = (
+                IngredientRecipe.objects.filter(recipe_id=recipe.id)
+            )
+            for current_ingredient in current_ingredients:
+                if current_ingredient.ingredient.id not in (
+                    ingredient_dict['id']
+                    for ingredient_dict in ingredients
+                ):
+                    current_ingredient.delete()
+        else:
+            recipe = Recipe.objects.create(**validated_data)
         for tag in tags:
             tag = get_object_or_404(
                 Tag,
@@ -346,47 +381,14 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             )
         return recipe
 
+    def create(self, validated_data):
+        return self.create_or_update(validated_data=validated_data)
+
     def update(self, recipe, validated_data):
-        tags = validated_data.pop('tags')
-        ingredients = validated_data.pop('ingredientrecipe_set')
-        for attr, value in validated_data.items():
-            setattr(recipe, attr, value)
-        recipe.save()
-        current_tags = (
-            TagRecipe.objects.filter(recipe_id=recipe.id)
+        return self.create_or_update(
+            validated_data=validated_data,
+            recipe=recipe,
         )
-        for current_tag in current_tags:
-            if current_tag.tag.id not in tags:
-                current_tag.delete()
-        for tag in tags:
-            tag = get_object_or_404(
-                Tag,
-                id=tag.id
-            )
-            TagRecipe.objects.create(
-                recipe_id=recipe.id,
-                tag_id=tag.id
-            )
-        current_ingredients = (
-            IngredientRecipe.objects.filter(recipe_id=recipe.id)
-        )
-        for current_ingredient in current_ingredients:
-            if current_ingredient.ingredient.id not in (
-                ingredient_dict['id']
-                for ingredient_dict in ingredients
-            ):
-                current_ingredient.delete()
-        for ingredient_dict in ingredients:
-            ingredient = get_object_or_404(
-                Ingredient,
-                id=ingredient_dict['id']
-            )
-            IngredientRecipe.objects.create(
-                recipe_id=recipe.id,
-                ingredient_id=ingredient.id,
-                amount=ingredient_dict['amount']
-            )
-        return recipe
 
     def to_representation(self, recipe):
         return RecipeReadSerializer(
@@ -395,7 +397,11 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         ).data
 
 
-class RecipeFavoriteAndShoppingCartSerializer(serializers.ModelSerializer):
+class RecipeFavoriteAndShoppingCartSerializer(
+    serializers.ModelSerializer,
+    ToRepresentationImageSerializer,
+):
+    image_name = IMAGE_FIELD_NAME
 
     class Meta:
         model = Recipe
@@ -405,7 +411,3 @@ class RecipeFavoriteAndShoppingCartSerializer(serializers.ModelSerializer):
             'image',
             'cooking_time',
         )
-
-    def to_representation(self, user):
-        representation = super().to_representation(user)
-        return absolute_url_representation(representation, self, 'image')

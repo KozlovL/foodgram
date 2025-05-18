@@ -1,12 +1,15 @@
 import hashlib
 
-from django.contrib.contenttypes.models import ContentType
-from django.db.models import Count, Exists, OuterRef
+from django.conf import settings
+from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from recipes.constants import SHORT_LINK_MAX_LENGTH
-from recipes.models import (Favorite, Ingredient, Recipe, ShoppingCart,
-                            ShortLink, Subscription, Tag, User)
+from django_filters.rest_framework import DjangoFilterBackend
+from recipes.constants import LIST_NAME_CHOICES, SHORT_LINK_MAX_LENGTH
+from recipes.filters import (NameSearchFilter, RecipeFilter,
+                             get_filtered_by_special_field_queryset)
+from recipes.models import (Ingredient, Recipe, ShortLink, Tag, User,
+                            toggle_special)
 from recipes.pagination import PageLimitPagination
 from recipes.permissions import IsAuthor
 from recipes.serializers import (AvatarSerializer, IngredientSerializer,
@@ -24,64 +27,18 @@ from rest_framework.response import Response
 
 def short_link_redirect(request, code):
     short_link = get_object_or_404(ShortLink, code=code)
-    return redirect(f'https://localhost/recipes/{short_link.recipe.id}/')
-
-
-class SpecialListManager:
-    def toggle_special(
-        self,
-        request,
-        instance,
-        special_list_model,
-    ):
-        content_type = ContentType.objects.get_for_model(instance)
-        if request.method == 'POST':
-            object, created = special_list_model.objects.get_or_create(
-                user=request.user,
-                content_type=content_type,
-                object_id=instance.id
-            )
-            if created:
-                return True
-            return False
-        else:
-            object = special_list_model.objects.filter(
-                user=request.user,
-                content_type=content_type,
-                object_id=instance.id
-            )
-            if object.exists():
-                object.delete()
-                return True
-            return False
-
-    def annotate_queryset_is_special_field(
-        self,
-        request,
-        special_list_model,
-        queryset,
-        field_name
-    ):
-        user = request.user if request.user.is_authenticated else None
-        is_special_subquery = special_list_model.objects.filter(
-            object_id=OuterRef('pk'),
-            user=user,
-            content_type=ContentType.objects.get_for_model(queryset.model)
-        )
-        queryset = queryset.annotate(**{
-            field_name: Exists(is_special_subquery)
-        })
-        return queryset
+    return redirect(
+        f'https://{settings.DOMAIN}/recipes/{short_link.recipe.id}/'
+    )
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
     permission_classes = (AllowAny,)
     lookup_field = 'id'
     ordering = ('username',)
     pagination_class = PageLimitPagination
     http_method_names = ['get', 'post', 'put', 'delete']
-
-    special_list_helper = SpecialListManager()
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -96,17 +53,13 @@ class UserViewSet(viewsets.ModelViewSet):
         )
         return context
 
-    def get_queryset(self):
-        queryset = User.objects.all()
-        queryset = (
-            self.special_list_helper.annotate_queryset_is_special_field
-        )(
-            special_list_model=Subscription,
-            queryset=queryset,
-            field_name='is_subscribed',
-            request=self.request
-        )
-        return queryset
+    def get_recipes_annotated_queryset(
+            self,
+            queryset,
+    ):
+        return queryset.annotate(
+            recipes_count=Count('recipes')
+        ).order_by(*User._meta.ordering)
 
     @action(
         detail=True,
@@ -116,7 +69,7 @@ class UserViewSet(viewsets.ModelViewSet):
     )
     def subscribe(self, request, id=None):
         user = get_object_or_404(
-            User,
+            self.get_queryset(),
             pk=id
         )
         if request.user == user:
@@ -124,10 +77,10 @@ class UserViewSet(viewsets.ModelViewSet):
                 {'message': 'Нельзя подписаться на себя'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if not self.special_list_helper.toggle_special(
+        if not toggle_special(
             request=request,
             instance=user,
-            special_list_model=Subscription,
+            list_name_choice=LIST_NAME_CHOICES[1],
         ):
             if request.method == 'POST':
                 message = 'Данный пользователь уже добавлен в подписки'
@@ -140,9 +93,9 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         if request.method == 'POST':
-            queryset = self.get_queryset().filter(id=user.id).annotate(
-                recipes_count=Count('recipes')
-            ).order_by(*User._meta.ordering)
+            queryset = self.get_recipes_annotated_queryset(
+                queryset=self.get_queryset()
+            )
             serializer = SubscribeUserSerializer(
                 queryset.first(),
                 context=self.get_serializer_context(),
@@ -160,9 +113,9 @@ class UserViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def subscriptions(self, request):
-        queryset = self.get_queryset().filter(is_subscribed=True).annotate(
-            recipes_count=Count('recipes')
-        ).order_by(*User._meta.ordering)
+        queryset = self.get_recipes_annotated_queryset(
+            queryset=self.get_queryset()
+        )
         page = self.paginate_queryset(queryset)
         serializer = SubscribeUserSerializer(
             page if page is not None else queryset,
@@ -183,8 +136,7 @@ class UserViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,)
     )
     def me(self, request):
-        queryset = self.get_queryset().filter(id=request.user.id).first()
-        serializer = self.get_serializer(queryset)
+        serializer = self.get_serializer(request.user)
         return Response(
             serializer.data,
             status=status.HTTP_200_OK
@@ -202,7 +154,7 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer = AvatarSerializer(
                 user,
                 data=request.data,
-                context={'request': request}
+                context=self.get_serializer_context()
             )
             if serializer.is_valid():
                 serializer.save()
@@ -250,27 +202,24 @@ class TagViewSet(viewsets.ModelViewSet):
 
 
 class IngredientViewSet(viewsets.ModelViewSet):
+    queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     http_method_names = ['get']
     permission_classes = (AllowAny,)
     lookup_field = 'id'
     ordering = ('name',)
-
-    def get_queryset(self):
-        queryset = Ingredient.objects.all()
-        name = self.request.query_params.get('name')
-        if name:
-            queryset = queryset.filter(name__istartswith=name)
-        return queryset
+    filter_backends = (NameSearchFilter,)
+    search_fields = ('^name',)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
+    queryset = Recipe.objects.all()
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'id'
     ordering = ('name',)
     pagination_class = PageLimitPagination
-
-    special_list_helper = SpecialListManager()
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = RecipeFilter
 
     def get_permissions(self):
         if self.request.method in ('PATCH', 'DELETE'):
@@ -288,43 +237,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return RecipeReadSerializer
         return RecipeWriteSerializer
 
-    def get_queryset(self):
-        queryset = Recipe.objects.all()
-        request = self.request
-        queryset = (
-            self.special_list_helper.annotate_queryset_is_special_field
-        )(
-            special_list_model=Favorite,
-            queryset=queryset,
-            field_name='is_favorited',
-            request=request
-        )
-        queryset = (
-            self.special_list_helper.annotate_queryset_is_special_field
-        )(
-            special_list_model=ShoppingCart,
-            queryset=queryset,
-            field_name='is_in_shopping_cart',
-            request=request
-        )
-        if self.action == 'list':
-            query_params = request.query_params
-            bool_query_filters = ('is_favorited', 'is_in_shopping_cart')
-            filters = {}
-            for field in bool_query_filters:
-                value = query_params.get(field)
-                if value is not None:
-                    filters[field] = value == '1'
-            author_filter = query_params.get('author')
-            if author_filter is not None:
-                filters['author'] = int(author_filter)
-            tags_filter = query_params.getlist('tags')
-            if tags_filter:
-                queryset = queryset.filter(tags__slug__in=tags_filter)
-            if filters:
-                queryset = queryset.filter(**filters)
-        return queryset
-
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
@@ -336,7 +248,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def get_short_link(self, request, id=None):
         recipe = get_object_or_404(
-            Recipe,
+            self.get_queryset(),
             id=id
         )
         short_link_object, created = ShortLink.objects.get_or_create(
@@ -345,8 +257,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 str(recipe.id).encode()
             ).hexdigest()[:SHORT_LINK_MAX_LENGTH]}
         )
-        domain = 'localhost'
-        short_link = f"{domain}/s/{short_link_object.code}"
+        short_link = f'{settings.DOMAIN}/s/{short_link_object.code}'
         return Response(
             {'short-link': short_link},
             status=status.HTTP_200_OK
@@ -356,26 +267,26 @@ class RecipeViewSet(viewsets.ModelViewSet):
         self,
         request,
         id,
-        special_list_model
+        list_name_choice,
     ):
         recipe = get_object_or_404(
-            Recipe,
+            self.get_queryset(),
             pk=id
         )
-        if not self.special_list_helper.toggle_special(
+        if not toggle_special(
             request=request,
             instance=recipe,
-            special_list_model=special_list_model,
+            list_name_choice=list_name_choice
         ):
             if request.method == 'POST':
                 message = (
                     f'Данный рецепт уже добавлен в '
-                    f'{special_list_model._meta.verbose_name}'
+                    f'{list_name_choice[1]}'
                 )
             else:
                 message = (
                     f'Данный рецепт отсутствует в '
-                    f'{special_list_model._meta.verbose_name}'
+                    f'{list_name_choice[1]}'
                 )
             return Response(
                 {
@@ -403,9 +314,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def shopping_cart(self, request, id=None):
         return self.add_or_delete_from_special_list(
-            request,
-            id,
-            ShoppingCart,
+            request=request,
+            id=id,
+            list_name_choice=LIST_NAME_CHOICES[2],
         )
 
     @action(
@@ -416,9 +327,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def favorite(self, request, id=None):
         return self.add_or_delete_from_special_list(
-            request,
-            id,
-            Favorite,
+            request=request,
+            id=id,
+            list_name_choice=LIST_NAME_CHOICES[0],
         )
 
     @action(
@@ -428,7 +339,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def download_shopping_cart(self, request):
-        queryset = self.get_queryset().filter(is_in_shopping_cart=True)
+        queryset = get_filtered_by_special_field_queryset(
+            queryset=self.get_queryset(),
+            user=request.user,
+            list_name_choice=LIST_NAME_CHOICES[2],
+        )
         shopping_cart = dict()
         for recipe in queryset:
             for ingredient_recipe in recipe.ingredientrecipe_set.all():
