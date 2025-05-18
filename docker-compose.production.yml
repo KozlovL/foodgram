@@ -20,7 +20,7 @@ services:
   frontend:
     env_file: .env
     image: kozlovl/foodgram_frontend
-    command: sh -c "cp -r /app/build/. /frontend_static/""
+    command: sh -c "cp -r /app/build/. /frontend_static/"
     volumes:
       - static:/frontend_static
   gateway:
