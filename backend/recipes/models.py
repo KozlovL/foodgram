@@ -231,3 +231,7 @@ class ShortLink(models.Model):
         unique=True,
         verbose_name='Код',
     )
+
+    class Meta:
+        verbose_name = 'Короткая ссылка'
+        verbose_name_plural = 'Короткие ссылки'
