@@ -10,7 +10,7 @@ class NameSearchFilter(filters.SearchFilter):
 
 
 class RecipeFilter(filter.FilterSet):
-    tags = filters.ModelMultipleChoiceFilter(
+    tags = filter.ModelMultipleChoiceFilter(
         field_name='tags__slug',
         to_field_name='slug',
         queryset=Tag.objects.all(),
