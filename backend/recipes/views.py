@@ -113,6 +113,7 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['get'],
         url_path='subscriptions',
+        permission_classes=(IsAuthenticated,)
     )
     def subscriptions(self, request):
         queryset = self.get_recipes_annotated_queryset(
@@ -140,6 +141,7 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['get'],
         url_path='me',
+        permission_classes=(IsAuthenticated,)
     )
     def me(self, request):
         serializer = self.get_serializer(request.user)
@@ -152,6 +154,7 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['put', 'delete'],
         url_path='me/avatar',
+        permission_classes=(IsAuthenticated,)
     )
     def avatar(self, request):
         user = request.user
@@ -248,6 +251,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['get'],
         url_path='get-link',
+        permission_classes=(AllowAny,)
     )
     def get_short_link(self, request, id=None):
         recipe = get_object_or_404(
