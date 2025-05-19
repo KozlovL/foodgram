@@ -10,16 +10,10 @@ class NameSearchFilter(filters.SearchFilter):
 
 
 class RecipeFilter(filter.FilterSet):
-    tags = filter.CharFilter(
-        method='filter_tags',
+    tags = filters.AllValuesMultipleFilter(
         field_name='tags__slug',
+        to_field_name='slug',
     )
-
-    def filter_tags(self, queryset, name, value):
-        tags = self.request.GET.getlist('tags')
-        if not tags:
-            return queryset
-        return queryset.filter(tags__slug__in=tags).distinct()
 
     is_favorited = filter.NumberFilter(method='filter_favorited')
 
