@@ -20,7 +20,9 @@ git clone git@github.com:KozlovL/foodgram.git
 cd foodgram
 ```
 Для SSH потребуется добавить свой публичный ключ в настройки GitHub:
+
 https://github.com/settings/ssh/new
+
 2. **Создайте .env файл в корне:**
 ```bash
 POSTGRES_DB=foodgram
