@@ -138,7 +138,7 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['get'],
         url_path='me',
-        permission_classes=(IsAuthenticated(),)
+        permission_classes=(IsAuthenticated(),),
     )
     def me(self, request):
         serializer = self.get_serializer(request.user)
@@ -151,7 +151,7 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['put', 'delete'],
         url_path='me/avatar',
-        permission_classes=(IsAuthenticated(),)
+        permission_classes=(IsAuthenticated(),),
     )
     def avatar(self, request):
         user = request.user
@@ -180,7 +180,7 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['post'],
         url_path='set_password',
-        permission_classes=(IsAuthenticated(),)
+        permission_classes=(IsAuthenticated(),),
     )
     def set_password(self, request):
         user = request.user
@@ -249,7 +249,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['get'],
         url_path='get-link',
-        permission_classes=(AllowAny(),)
+        permission_classes=(AllowAny(),),
     )
     def get_short_link(self, request, id=None):
         recipe = get_object_or_404(
@@ -315,7 +315,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post', 'delete'],
         url_path='shopping_cart',
-        permission_classes=(IsAuthenticated(),)
+        permission_classes=(IsAuthenticated(),),
     )
     def shopping_cart(self, request, id=None):
         return self.add_or_delete_from_special_list(
@@ -328,7 +328,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post', 'delete'],
         url_path='favorite',
-        permission_classes=(IsAuthenticated(),)
+        permission_classes=(IsAuthenticated(),),
     )
     def favorite(self, request, id=None):
         return self.add_or_delete_from_special_list(
