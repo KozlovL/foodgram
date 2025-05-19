@@ -1,7 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django_filters import rest_framework as filter
 from recipes.constants import LIST_NAME_CHOICES
-from recipes.models import Recipe, SpecialListModel
+from recipes.models import Recipe, SpecialListModel, Tag
 from rest_framework import filters
 
 
@@ -11,10 +11,10 @@ class NameSearchFilter(filters.SearchFilter):
 
 class RecipeFilter(filter.FilterSet):
     tags = filter.AllValuesMultipleFilter(
+        queryset=Tag.objects.all(),
         field_name='tags__slug',
         to_field_name='slug',
-        lookup_expr='in',
-        distinct=True,
+        distinct=True
     )
 
     is_favorited = filter.NumberFilter(method='filter_favorited')
