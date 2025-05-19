@@ -1,4 +1,5 @@
 import hashlib
+import inspect
 
 from django.conf import settings
 from django.db.models import Count
@@ -20,8 +21,7 @@ from recipes.serializers import (AvatarSerializer, IngredientSerializer,
                                  UserReadSerializer, UserWriteSerializer)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny as DRFAllowAny
-from rest_framework.permissions import (IsAuthenticated,
+from rest_framework.permissions import (AllowAny, IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
 
@@ -203,10 +203,18 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class TagViewSet(viewsets.ModelViewSet):
+    # ——— ВСТАВЬ СРАЗУ ПОСЛЕ ОПРЕДЕЛЕНИЯ КЛАССА ———
+    def get_permissions(self):
+        print(">>> DEBUG permission_classes:", self.permission_classes)
+        for p in self.permission_classes:
+            print("    element:", p, "| is class?", inspect.isclass(p))
+        # вызываем стандартный код DRF
+        return super().get_permissions()
+
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     http_method_names = ['get']
-    permission_classes = (DRFAllowAny,)
+    permission_classes = (AllowAny,)
     lookup_field = 'id'
     ordering = ('name',)
 
@@ -215,7 +223,7 @@ class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     http_method_names = ['get']
-    permission_classes = (DRFAllowAny,)
+    permission_classes = (AllowAny,)
     lookup_field = 'id'
     ordering = ('name',)
     filter_backends = (NameSearchFilter,)
@@ -254,7 +262,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['get'],
         url_path='get-link',
-        permission_classes=(DRFAllowAny,)
+        permission_classes=(AllowAny,)
     )
     def get_short_link(self, request, id=None):
         recipe = get_object_or_404(
