@@ -41,8 +41,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return (IsAuthenticatedOrReadOnly(),)
-        return (IsAuthenticated(),)
+            return (IsAuthenticatedOrReadOnly,)
+        return (IsAuthenticated,)
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
