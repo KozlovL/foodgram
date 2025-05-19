@@ -14,14 +14,14 @@ services:
     image: kozlovl/foodgram_backend
     env_file: .env
     volumes:
-      - static:/backend_static
+      - static:/static
       - media:/media
 
   frontend:
     env_file: .env
     image: kozlovl/foodgram_frontend
     volumes:
-      - static:/frontend_static
+      - static:/static
   gateway:
     image: kozlovl/foodgram_gateway
     env_file: .env
