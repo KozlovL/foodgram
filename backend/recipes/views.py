@@ -34,11 +34,15 @@ def short_link_redirect(request, code):
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-    permission_classes = (AllowAny,)
     lookup_field = 'id'
     ordering = ('username',)
     pagination_class = PageLimitPagination
     http_method_names = ['get', 'post', 'put', 'delete']
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return (IsAuthenticatedOrReadOnly(),)
+        return (IsAuthenticated(),)
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -65,7 +69,6 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post', 'delete'],
         url_path='subscribe',
-        permission_classes=(IsAuthenticated,),
     )
     def subscribe(self, request, id=None):
         user = get_object_or_404(
@@ -110,7 +113,6 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['get'],
         url_path='subscriptions',
-        permission_classes=(IsAuthenticated,),
     )
     def subscriptions(self, request):
         queryset = self.get_recipes_annotated_queryset(
@@ -138,7 +140,6 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['get'],
         url_path='me',
-        permission_classes=(IsAuthenticated,),
     )
     def me(self, request):
         serializer = self.get_serializer(request.user)
@@ -151,7 +152,6 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['put', 'delete'],
         url_path='me/avatar',
-        permission_classes=(IsAuthenticated,),
     )
     def avatar(self, request):
         user = request.user
@@ -180,7 +180,6 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['post'],
         url_path='set_password',
-        permission_classes=(IsAuthenticated,),
     )
     def set_password(self, request):
         user = request.user
@@ -249,7 +248,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['get'],
         url_path='get-link',
-        permission_classes=(AllowAny,),
     )
     def get_short_link(self, request, id=None):
         recipe = get_object_or_404(
@@ -315,7 +313,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post', 'delete'],
         url_path='shopping_cart',
-        permission_classes=(IsAuthenticated,),
     )
     def shopping_cart(self, request, id=None):
         return self.add_or_delete_from_special_list(
@@ -328,7 +325,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post', 'delete'],
         url_path='favorite',
-        permission_classes=(IsAuthenticated,),
     )
     def favorite(self, request, id=None):
         return self.add_or_delete_from_special_list(
