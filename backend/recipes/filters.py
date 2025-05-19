@@ -12,7 +12,8 @@ class NameSearchFilter(filters.SearchFilter):
 class RecipeFilter(filter.FilterSet):
     tags = filter.AllValuesMultipleFilter(
         field_name='tags__slug',
-        to_field_name='slug'
+        to_field_name='slug',
+        lookup_expr='in'
     )
 
     is_favorited = filter.NumberFilter(method='filter_favorited')
