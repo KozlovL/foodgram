@@ -8,7 +8,7 @@
 Позволяет создавать рецепты и создавать список покупок.
 
 Проект доступен по адресу:  
-**https://foodgramgostname.zapto.org**
+**https://foodgramhostname.zapto.org**
 
 ---
 
