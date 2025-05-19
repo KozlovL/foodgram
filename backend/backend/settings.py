@@ -25,7 +25,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', '123')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'foodgramhostname.zapto.org', '89.169.174.82']
+DOMAIN = 'foodgramhostname.zapto.org'
+
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', DOMAIN]
+
+CSRF_TRUSTED_ORIGINS = [DOMAIN]
 
 # Application definition
 
@@ -148,4 +152,3 @@ REST_FRAMEWORK = {
     ],
 }
 
-DOMAIN = 'foodgramhostname.zapto.org'
