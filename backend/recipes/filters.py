@@ -20,7 +20,7 @@ class RecipeFilter(filter.FilterSet):
     def filter_tags(self, queryset, name, value):
         for tag in value:
             queryset = queryset.filter(tags=tag)
-        return queryset.distinct('id')
+        return queryset.distinct()
 
     is_favorited = filter.NumberFilter(method='filter_favorited')
 
