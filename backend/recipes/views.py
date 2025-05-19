@@ -45,9 +45,9 @@ class UserViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'put', 'delete']
 
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return (IsAuthenticatedOrReadOnly(),)
-        return (IsAuthenticated(),)
+        if self.request.method == 'POST':
+            return (AllowAny(),)
+        return (IsAuthenticatedOrReadOnly(),)
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
