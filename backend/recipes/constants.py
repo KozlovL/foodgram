@@ -17,3 +17,13 @@ LIST_NAME_CHOICES = (
 )
 AVATAR_FIELD_NAME = 'avatar'
 IMAGE_FIELD_NAME = 'image'
+SHOPPING_CART_FILENAME = "shopping_cart.txt"
+DOWNLOAD_SHOPPING_CART_URL = 'download_shopping_cart'
+FAVORITE_URL = 'favorite'
+SHOPPING_CART_URL = 'shopping_cart'
+GET_LINK_URL = 'get-link'
+SELF_URL = 'me'
+AVATAR_URL = f'{SELF_URL}/avatar'
+SUBSCRIPTIONS_URL = 'subscriptions'
+SUBSCRIBE_URL = 'subscribe'
+SET_PASSWORD_URL = 'set_password'

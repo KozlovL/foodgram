@@ -1,12 +1,16 @@
 import hashlib
-import inspect
 
 from django.conf import settings
 from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
-from recipes.constants import LIST_NAME_CHOICES, SHORT_LINK_MAX_LENGTH
+from recipes.constants import (AVATAR_URL, DOWNLOAD_SHOPPING_CART_URL,
+                               FAVORITE_URL, GET_LINK_URL, LIST_NAME_CHOICES,
+                               SELF_URL, SET_PASSWORD_URL,
+                               SHOPPING_CART_FILENAME, SHOPPING_CART_URL,
+                               SHORT_LINK_MAX_LENGTH, SUBSCRIBE_URL,
+                               SUBSCRIPTIONS_URL)
 from recipes.filters import (NameSearchFilter, RecipeFilter,
                              get_filtered_by_special_field_queryset)
 from recipes.models import (Ingredient, Recipe, ShortLink, Tag, User,
@@ -69,7 +73,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['post', 'delete'],
-        url_path='subscribe',
+        url_path=SUBSCRIBE_URL,
         permission_classes=(IsAuthenticated,)
     )
     def subscribe(self, request, id=None):
@@ -114,7 +118,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=['get'],
-        url_path='subscriptions',
+        url_path=SUBSCRIPTIONS_URL,
         permission_classes=(IsAuthenticated,)
     )
     def subscriptions(self, request):
@@ -142,7 +146,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=['get'],
-        url_path='me',
+        url_path=SELF_URL,
         permission_classes=(IsAuthenticated,)
     )
     def me(self, request):
@@ -155,7 +159,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=['put', 'delete'],
-        url_path='me/avatar',
+        url_path=AVATAR_URL,
         permission_classes=(IsAuthenticated,)
     )
     def avatar(self, request):
@@ -184,7 +188,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=['post'],
-        url_path='set_password',
+        url_path=SET_PASSWORD_URL,
         permission_classes=(IsAuthenticated,)
     )
     def set_password(self, request):
@@ -203,14 +207,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class TagViewSet(viewsets.ModelViewSet):
-    # ——— ВСТАВЬ СРАЗУ ПОСЛЕ ОПРЕДЕЛЕНИЯ КЛАССА ———
-    def get_permissions(self):
-        print(">>> DEBUG permission_classes:", self.permission_classes)
-        for p in self.permission_classes:
-            print("    element:", p, "| is class?", inspect.isclass(p))
-        # вызываем стандартный код DRF
-        return super().get_permissions()
-
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     http_method_names = ['get']
@@ -261,7 +257,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['get'],
-        url_path='get-link',
+        url_path=GET_LINK_URL,
         permission_classes=(AllowAny,)
     )
     def get_short_link(self, request, id=None):
@@ -327,7 +323,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['post', 'delete'],
-        url_path='shopping_cart',
+        url_path=SHOPPING_CART_URL,
+        permission_classes=(IsAuthenticated,)
     )
     def shopping_cart(self, request, id=None):
         return self.add_or_delete_from_special_list(
@@ -339,7 +336,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['post', 'delete'],
-        url_path='favorite',
+        url_path=FAVORITE_URL,
     )
     def favorite(self, request, id=None):
         return self.add_or_delete_from_special_list(
@@ -351,7 +348,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=['get'],
-        url_path='download_shopping_cart',
+        url_path=DOWNLOAD_SHOPPING_CART_URL,
         permission_classes=(IsAuthenticated,),
     )
     def download_shopping_cart(self, request):
@@ -382,6 +379,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         response = HttpResponse(shop_list, content_type='text/plain')
         response['Content-Disposition'] = (
             'attachment;'
-            'filename="shopping_cart.txt"'
+            f'filename={SHOPPING_CART_FILENAME}'
         )
         return response
