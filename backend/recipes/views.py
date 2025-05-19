@@ -116,6 +116,11 @@ class UserViewSet(viewsets.ModelViewSet):
         queryset = self.get_recipes_annotated_queryset(
             queryset=self.get_queryset()
         )
+        queryset = get_filtered_by_special_field_queryset(
+            queryset=self.get_queryset(),
+            user=request.user,
+            list_name_choice=LIST_NAME_CHOICES[1],
+        )
         page = self.paginate_queryset(queryset)
         serializer = SubscribeUserSerializer(
             page if page is not None else queryset,
