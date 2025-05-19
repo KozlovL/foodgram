@@ -228,8 +228,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.request.method in ('PATCH', 'DELETE'):
-            return (IsAuthor(),)
-        return (IsAuthenticatedOrReadOnly(),)
+            return (IsAuthor,)
+        return (IsAuthenticatedOrReadOnly,)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

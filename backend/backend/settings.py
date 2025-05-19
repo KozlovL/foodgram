@@ -29,7 +29,7 @@ DOMAIN = 'foodgramhostname.zapto.org'
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', DOMAIN]
 
-CSRF_TRUSTED_ORIGINS = [DOMAIN]
+CSRF_TRUSTED_ORIGINS = ['https://' + DOMAIN]
 
 # Application definition
 
