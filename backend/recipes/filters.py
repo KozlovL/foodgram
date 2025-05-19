@@ -19,7 +19,7 @@ class RecipeFilter(filter.FilterSet):
         tags = self.request.GET.getlist('tags')
         if not tags:
             return queryset
-        return queryset.filter(tags__slug__in=tags)
+        return queryset.filter(tags__slug__in=tags).distinct()
 
     is_favorited = filter.NumberFilter(method='filter_favorited')
 
