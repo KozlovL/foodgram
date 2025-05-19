@@ -30,7 +30,7 @@ SECRET_KEY=ваш-secret-key
 ```
 3. **Запустите проект в Docker-контейнерах**
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 ## Примеры API-запросов

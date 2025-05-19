@@ -1,6 +1,7 @@
 volumes:
   pg_data:
   static:
+  media:
 
 services:
   foodgram_db:
@@ -13,6 +14,7 @@ services:
     env_file: .env
     volumes:
       - static:/backend_static
+      - media:/media
   frontend:
     env_file: .env
     build: ./frontend/
@@ -26,3 +28,4 @@ services:
       - 7000:80
     volumes:
       - static:/static/
+      - media:/media/
