@@ -221,7 +221,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'id'
-    ordering = ('name',)
+    ordering = ('-pub_date',)
     pagination_class = PageLimitPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
@@ -348,7 +348,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             queryset=self.get_queryset(),
             user=request.user,
             list_name_choice=LIST_NAME_CHOICES[2],
-        )
+        ).order_by(*Recipe._meta.ordering)
         shopping_cart = dict()
         for recipe in queryset:
             for ingredient_recipe in recipe.ingredientrecipe_set.all():

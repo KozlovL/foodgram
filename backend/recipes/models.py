@@ -184,10 +184,15 @@ class Recipe(NameModel):
     shopping_carts = GenericRelation(
         'SpecialListModel'
     )
+    pub_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата публикации'
+    )
 
     class Meta(NameModel.Meta):
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
+        ordering = ('-pub_date',)
 
 
 class IngredientRecipe(models.Model):
