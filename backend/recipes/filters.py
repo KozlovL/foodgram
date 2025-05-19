@@ -18,6 +18,8 @@ class RecipeFilter(filter.FilterSet):
     )
 
     def filter_tags(self, queryset, name, value):
+        if not value:
+            return queryset
         return queryset.filter(tags__in=value).distinct()
 
     is_favorited = filter.NumberFilter(method='filter_favorited')
