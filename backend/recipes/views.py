@@ -141,6 +141,7 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['get'],
         url_path='me',
+        permission_classes=(IsAuthenticated,)
     )
     def me(self, request):
         serializer = self.get_serializer(request.user)
