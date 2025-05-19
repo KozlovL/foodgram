@@ -205,7 +205,7 @@ class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     http_method_names = ['get']
-    permission_classes = (AllowAny,)
+    permission_classes = (AllowAny(),)
     lookup_field = 'id'
     ordering = ('name',)
 
