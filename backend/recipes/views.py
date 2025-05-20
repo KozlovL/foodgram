@@ -271,7 +271,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 str(recipe.id).encode()
             ).hexdigest()[:SHORT_LINK_MAX_LENGTH]}
         )
-        short_link = f'{settings.DOMAIN}/s/{short_link_object.code}'
+        short_link = f'https://{settings.DOMAIN}/s/{short_link_object.code}'
         return Response(
             {'short-link': short_link},
             status=status.HTTP_200_OK
