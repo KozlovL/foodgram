@@ -1,6 +1,6 @@
 # Foodgram API
 
-![CI](https://github.com/KozlovL/foodgram/actions/workflows/main.yml/badge.svg)
+[![CI](https://github.com/KozlovL/foodgram/actions/workflows/main.yml/badge.svg)](https://github.com/KozlovL/foodgram/actions)
 
 ## Описание
 
