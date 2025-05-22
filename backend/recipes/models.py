@@ -4,7 +4,7 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 
-from .constants import (
+from recipes.constants import (
     AVATAR_IMAGE_FOLDER,
     EMAIL_MAX_LENGTH,
     MEASUREMENT_UNIT_MAX_LENGTH,

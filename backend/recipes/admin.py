@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import (
+from recipes.models import (
     Favorite,
     Ingredient,
     IngredientRecipe,
