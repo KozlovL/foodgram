@@ -1,12 +1,19 @@
 from django.contrib import admin
-from django.contrib.contenttypes.models import ContentType
-from recipes.constants import LIST_NAME_CHOICES
-from recipes.models import (Ingredient, Recipe, ShortLink, SpecialListModel,
-                            Tag, User)
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+
+from recipes.models import (
+    Favorite,
+    Ingredient,
+    Recipe,
+    ShortLink,
+    Subscribe,
+    Tag,
+    User,
+)
 
 
 @admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(BaseUserAdmin):
     list_display = (
         'username',
         'email',
@@ -35,6 +42,10 @@ class IngredientAdmin(admin.ModelAdmin):
     empty_value_display = '-пусто-'
 
 
+class IngredientInline(admin.StackedInline):
+    model = Ingredient
+
+
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     list_display = (
@@ -43,34 +54,35 @@ class RecipeAdmin(admin.ModelAdmin):
         'cooking_time',
         'favorites_count',
     )
+    inlines = (
+        IngredientInline,
+    )
     search_fields = ('name', 'author__username', 'author__email')
     list_filter = ('tags',)
     empty_value_display = '-пусто-'
 
+    @admin.display(description='В избранном')
     def favorites_count(self, obj):
-        return SpecialListModel.objects.filter(
-            content_type=ContentType.objects.get_for_model(obj.__class__),
-            object_id=obj.id,
-            list_name=LIST_NAME_CHOICES[0]
+        return Favorite.objects.filter(
+            recipe=obj
         ).count()
-    favorites_count.short_description = 'В избранном'
 
 
-@admin.register(SpecialListModel)
-class SpecialListAdmin(admin.ModelAdmin):
+@admin.register(Subscribe)
+class SubscribeAdmin(admin.ModelAdmin):
     list_display = (
         'user',
-        'get_recipe',
-        'get_user'
+        'get_subscribed_user_recipes',
+        'get_subscribed_user'
     )
 
-    def get_recipe(self, obj):
-        return obj.content_object
-    get_recipe.short_description = 'Рецепт'
+    @admin.display(description='Кол-во рецептов')
+    def get_subscribed_user_recipes(self, obj):
+        return obj.subscribed_user.recipes.count()
 
-    def get_user(self, obj):
-        return obj.content_object
-    get_user.short_description = 'Пользователь в подписках'
+    @admin.display(description='Подписан на пользователя')
+    def get_subscribed_user(self, obj):
+        return obj.subscribed_user.username
 
 
 @admin.register(ShortLink)

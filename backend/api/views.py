@@ -5,24 +5,23 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
+
+from api.filters import NameSearchFilter, RecipeFilter
+from api.pagination import PageLimitPagination
+from api.permissions import IsAuthor
+from api.serializers import (AvatarSerializer, FavoriteSerializer,
+                             IngredientSerializer, PasswordSerializer,
+                             RecipeFavoriteAndShoppingCartSerializer,
+                             RecipeReadSerializer, RecipeWriteSerializer,
+                             ShoppingCartSerializer, SubscribeSerializer,
+                             SubscribeUserSerializer, TagSerializer,
+                             UserReadSerializer, UserWriteSerializer)
 from recipes.constants import (AVATAR_URL, DOWNLOAD_SHOPPING_CART_URL,
-                               FAVORITE_URL, GET_LINK_URL, LIST_NAME_CHOICES,
-                               SELF_URL, SET_PASSWORD_URL,
-                               SHOPPING_CART_FILENAME, SHOPPING_CART_URL,
-                               SHORT_LINK_MAX_LENGTH, SUBSCRIBE_URL,
-                               SUBSCRIPTIONS_URL)
-from recipes.filters import (NameSearchFilter, RecipeFilter,
-                             get_filtered_by_special_field_queryset)
-from recipes.models import (Ingredient, Recipe, ShortLink, Tag, User,
-                            toggle_special)
-from recipes.pagination import PageLimitPagination
-from recipes.permissions import IsAuthor
-from recipes.serializers import (AvatarSerializer, IngredientSerializer,
-                                 PasswordSerializer,
-                                 RecipeFavoriteAndShoppingCartSerializer,
-                                 RecipeReadSerializer, RecipeWriteSerializer,
-                                 SubscribeUserSerializer, TagSerializer,
-                                 UserReadSerializer, UserWriteSerializer)
+                               FAVORITE_URL, GET_LINK_URL, SELF_URL,
+                               SET_PASSWORD_URL, SHOPPING_CART_FILENAME,
+                               SHOPPING_CART_URL, SHORT_LINK_MAX_LENGTH,
+                               SUBSCRIBE_URL, SUBSCRIPTIONS_URL)
+from recipes.models import Ingredient, Recipe, ShortLink, Tag, User
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import (AllowAny, IsAuthenticated,
@@ -77,33 +76,23 @@ class UserViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,)
     )
     def subscribe(self, request, id=None):
-        user = get_object_or_404(
+        subscribed_user = get_object_or_404(
             self.get_queryset(),
             pk=id
         )
-        if request.user == user:
-            return Response(
-                {'message': 'Нельзя подписаться на себя'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if not toggle_special(
-            request=request,
-            instance=user,
-            list_name_choice=LIST_NAME_CHOICES[1],
-        ):
-            if request.method == 'POST':
-                message = 'Данный пользователь уже добавлен в подписки'
-            else:
-                message = 'Данный пользователь отсутствует в подписках'
-            return Response(
-                {
-                    'message': message
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        user = request.user
+        serializer = SubscribeSerializer(
+            data={
+                'user': user.id,
+                'subscribed_user': subscribed_user.id
+            },
+            context=self.get_serializer_context(),
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         if request.method == 'POST':
             queryset = self.get_recipes_annotated_queryset(
-                queryset=self.get_queryset()
+                queryset=self.get_queryset().filter(id=subscribed_user.id)
             )
             serializer = SubscribeUserSerializer(
                 queryset.first(),
@@ -123,12 +112,12 @@ class UserViewSet(viewsets.ModelViewSet):
     )
     def subscriptions(self, request):
         queryset = self.get_recipes_annotated_queryset(
-            queryset=self.get_queryset()
-        )
-        queryset = get_filtered_by_special_field_queryset(
-            queryset=self.get_queryset(),
-            user=request.user,
-            list_name_choice=LIST_NAME_CHOICES[1],
+            queryset=User.objects.filter(
+                id__in=request.user.subscriptions.all().values_list(
+                    'user_id',
+                    flat=True
+                )
+            )
         )
         page = self.paginate_queryset(queryset)
         serializer = SubscribeUserSerializer(
@@ -170,7 +159,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 data=request.data,
                 context=self.get_serializer_context()
             )
-            if serializer.is_valid():
+            if serializer.is_valid(raise_exception=True):
                 serializer.save()
                 return Response(
                     serializer.data,
@@ -180,10 +169,8 @@ class UserViewSet(viewsets.ModelViewSet):
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        elif request.method == 'DELETE':
-            user.avatar.delete(save=True)
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        user.avatar.delete(save=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=False,
@@ -280,35 +267,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def add_or_delete_from_special_list(
         self,
         request,
-        id,
-        list_name_choice,
+        recipe_id,
+        serializer,
     ):
         recipe = get_object_or_404(
             self.get_queryset(),
-            pk=id
+            pk=recipe_id
         )
-        if not toggle_special(
-            request=request,
-            instance=recipe,
-            list_name_choice=list_name_choice
-        ):
-            if request.method == 'POST':
-                message = (
-                    f'Данный рецепт уже добавлен в '
-                    f'{list_name_choice[1]}'
-                )
-            else:
-                message = (
-                    f'Данный рецепт отсутствует в '
-                    f'{list_name_choice[1]}'
-                )
-            return Response(
-                {
-                    'message':
-                    message
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        user = request.user
+        serializer = serializer(
+            data={
+                'user': user.id,
+                'recipe': recipe.id,
+            },
+            context=self.get_serializer_context()
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         if request.method == 'POST':
             serializer = RecipeFavoriteAndShoppingCartSerializer(
                 recipe,
@@ -329,8 +304,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def shopping_cart(self, request, id=None):
         return self.add_or_delete_from_special_list(
             request=request,
-            id=id,
-            list_name_choice=LIST_NAME_CHOICES[2],
+            recipe_id=id,
+            serializer=ShoppingCartSerializer,
         )
 
     @action(
@@ -341,8 +316,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def favorite(self, request, id=None):
         return self.add_or_delete_from_special_list(
             request=request,
-            id=id,
-            list_name_choice=LIST_NAME_CHOICES[0],
+            recipe_id=id,
+            serializer=FavoriteSerializer,
         )
 
     @action(
@@ -352,14 +327,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def download_shopping_cart(self, request):
-        queryset = get_filtered_by_special_field_queryset(
-            queryset=self.get_queryset(),
-            user=request.user,
-            list_name_choice=LIST_NAME_CHOICES[2],
-        ).order_by(*Recipe._meta.ordering)
+        recipe_ids = request.user.shopping_cart.all().values_list(
+            'recipe',
+            flat=True
+        )
+        recipe_queryset = Recipe.objects.filter(id__in=recipe_ids)
         shopping_cart = dict()
-        for recipe in queryset:
-            for ingredient_recipe in recipe.ingredientrecipe_set.all():
+        for recipe in recipe_queryset:
+            for ingredient_recipe in recipe.recipe_ingredients.all():
                 name = ingredient_recipe.ingredient.name
                 if name not in shopping_cart.keys():
                     shopping_cart[name] = {

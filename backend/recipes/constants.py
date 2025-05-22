@@ -10,11 +10,6 @@ SHORT_LINK_MAX_LENGTH = 6
 IS_SUBSCRIBED_FIELD_NAME = 'is_subscribed'
 IS_FAVORITED_FIELD_NAME = 'is_favorited'
 IS_IN_SHOPPING_CART_FIELD_NAME = 'is_in_shopping_cart'
-LIST_NAME_CHOICES = (
-    ('favorites', 'Избранное'),
-    ('subscriptions', 'Подписки'),
-    ('shopping', 'Список покупок')
-)
 AVATAR_FIELD_NAME = 'avatar'
 IMAGE_FIELD_NAME = 'image'
 SHOPPING_CART_FILENAME = "shopping_cart.txt"
@@ -27,3 +22,7 @@ AVATAR_URL = f'{SELF_URL}/avatar'
 SUBSCRIPTIONS_URL = 'subscriptions'
 SUBSCRIBE_URL = 'subscribe'
 SET_PASSWORD_URL = 'set_password'
+PAGE_SIZE = 20
+USERNAME_STR_WIDTH = 30
+FAVORITE_FOR_SERIALIZER = 'избранном'
+SHOPPING_CART_FOR_SERIALIZER = 'списке покупок'

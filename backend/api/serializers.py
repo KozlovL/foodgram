@@ -1,11 +1,39 @@
 from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
-from recipes.constants import (AVATAR_FIELD_NAME, IMAGE_FIELD_NAME,
-                               LIST_NAME_CHOICES)
-from recipes.filters import get_is_in_special_list
-from recipes.models import (Ingredient, IngredientRecipe, Recipe, Tag,
-                            TagRecipe, User)
 from rest_framework import serializers
+
+from recipes.constants import (
+    AVATAR_FIELD_NAME,
+    FAVORITE_FOR_SERIALIZER,
+    IMAGE_FIELD_NAME,
+    SHOPPING_CART_FOR_SERIALIZER,
+)
+from recipes.models import (
+    Favorite,
+    Ingredient,
+    IngredientRecipe,
+    Recipe,
+    ShoppingCart,
+    Subscribe,
+    Tag,
+    User,
+)
+
+
+def get_is_in_special_list(object, user, model, is_recipe):
+    if is_recipe:
+        return user.is_authenticated and (
+            model.objects.filter(
+                user=user,
+                recipe=object,
+            )
+        ).exists()
+    return user.is_authenticated and (
+        model.objects.filter(
+            user=user,
+            subscribed_user=object,
+        )
+    ).exists()
 
 
 def absolute_url_representation(representation, serializer, image_name):
@@ -51,7 +79,8 @@ class UserReadSerializer(
         return get_is_in_special_list(
             object=user,
             user=self.context['request'].user,
-            list_name_choice=LIST_NAME_CHOICES[1],
+            model=Subscribe,
+            is_recipe=False
         )
 
 
@@ -126,7 +155,8 @@ class SubscribeUserSerializer(
         return get_is_in_special_list(
             object=user,
             user=self.context['request'].user,
-            list_name_choice=LIST_NAME_CHOICES[1],
+            model=Subscribe,
+            is_recipe=False
         )
 
     def to_representation(self, user):
@@ -238,7 +268,7 @@ class RecipeReadSerializer(
     ingredients = IngredientRecipeReadSerializer(
         many=True,
         read_only=True,
-        source='ingredientrecipe_set'
+        source='recipe_ingredients'
     )
     image = Base64ImageField()
     is_favorited = serializers.SerializerMethodField()
@@ -263,14 +293,16 @@ class RecipeReadSerializer(
         return get_is_in_special_list(
             object=recipe,
             user=self.context['request'].user,
-            list_name_choice=LIST_NAME_CHOICES[0],
+            model=Favorite,
+            is_recipe=True
         )
 
     def get_is_in_shopping_cart(self, recipe):
         return get_is_in_special_list(
             object=recipe,
             user=self.context['request'].user,
-            list_name_choice=LIST_NAME_CHOICES[2],
+            model=ShoppingCart,
+            is_recipe=True
         )
 
 
@@ -282,7 +314,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     )
     ingredients = IngredientRecipeWriteSerializer(
         many=True,
-        source='ingredientrecipe_set'
+        source='recipe_ingredients'
     )
 
     class Meta:
@@ -298,7 +330,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         tags = data.get('tags')
-        ingredients = data.get('ingredientrecipe_set')
+        ingredients = data.get('recipe_ingredients')
         image = data.get('image')
         if not tags:
             raise serializers.ValidationError({
@@ -338,16 +370,14 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def create_or_update(self, validated_data, recipe=None):
         tags = validated_data.pop('tags')
-        ingredients = validated_data.pop('ingredientrecipe_set')
+        ingredients = validated_data.pop('recipe_ingredients')
         if recipe:
             for attr, value in validated_data.items():
                 setattr(recipe, attr, value)
             recipe.save()
-            current_tags = (
-                TagRecipe.objects.filter(recipe_id=recipe.id)
-            )
+            current_tags = recipe.tags.all()
             for current_tag in current_tags:
-                if current_tag.tag.id not in tags:
+                if current_tag.id not in tags:
                     current_tag.delete()
             current_ingredients = (
                 IngredientRecipe.objects.filter(recipe_id=recipe.id)
@@ -365,10 +395,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                 Tag,
                 id=tag.id
             )
-            TagRecipe.objects.create(
-                recipe_id=recipe.id,
-                tag_id=tag.id
-            )
+            recipe.tags.add(tag)
         for ingredient_dict in ingredients:
             ingredient = get_object_or_404(
                 Ingredient,
@@ -411,3 +438,92 @@ class RecipeFavoriteAndShoppingCartSerializer(
             'image',
             'cooking_time',
         )
+
+
+class ValidatedSpecialListSerializer(serializers.Serializer):
+
+    def validate(self, data):
+        user = data.get('user')
+        recipe = data.get('recipe')
+        if self.favorite:
+            recipes = Recipe.objects.filter(
+                in_favorites__user=user
+            )
+        else:
+            recipes = Recipe.objects.filter(
+                in_shopping_cart__user=user
+            )
+        if self.context['request'].method == 'POST':
+            if recipe in recipes:
+                raise serializers.ValidationError(
+                    f'Данный рецепт уже в {self.list_name}'
+                )
+            return super().validate(data)
+        if recipe not in recipes:
+            raise serializers.ValidationError(
+                f'Данный рецепт отсутствует в {self.list_name}'
+            )
+        return super().validate(data)
+
+
+class FavoriteSerializer(
+    ValidatedSpecialListSerializer,
+    serializers.ModelSerializer
+):
+    list_name = FAVORITE_FOR_SERIALIZER
+    favorite = True
+
+    class Meta:
+        model = Favorite
+        fields = (
+            'user',
+            'recipe',
+        )
+
+
+class ShoppingCartSerializer(
+    ValidatedSpecialListSerializer,
+    serializers.ModelSerializer
+):
+    list_name = SHOPPING_CART_FOR_SERIALIZER
+    favorite = False
+
+    class Meta:
+        model = ShoppingCart
+        fields = (
+            'user',
+            'recipe',
+        )
+
+
+class SubscribeSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Subscribe
+        fields = (
+            'user',
+            'subscribed_user',
+        )
+
+    def validate(self, data):
+        user = data.get('user')
+        subscribed_user = data.get('subscribed_user')
+        request = self.context['request']
+        if user == subscribed_user:
+            raise serializers.ValidationError(
+                'Нельзя подписаться на себя'
+            )
+        subscriptions = User.objects.filter(
+            subscribers__user=user
+        )
+        if request.method == 'POST':
+            if subscribed_user in subscriptions:
+                raise serializers.ValidationError(
+                    'Данный пользователь уже в подписках'
+                )
+            return super().validate(data)
+        if subscribed_user not in subscriptions:
+            raise serializers.ValidationError(
+                'Данного пользователя нет в подписках'
+            )
+        return super().validate(data)
