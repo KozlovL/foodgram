@@ -36,9 +36,9 @@ jobs:
         DB_HOST: 127.0.0.1
         DB_PORT: 5432
         SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      # run: |
-      #   python -m flake8 backend/
-
+      run: |
+        # python -m flake8 backend/
+        
   build_backend_and_push_to_docker_hub:
     name: Push docker image to DockerHub
     runs-on: ubuntu-latest
