@@ -14,7 +14,7 @@ from rest_framework.permissions import (
 )
 from rest_framework.response import Response
 
-from ..recipes.constants import (
+from recipes.constants import (
     AVATAR_URL,
     DOWNLOAD_SHOPPING_CART_URL,
     FAVORITE_URL,
@@ -27,7 +27,7 @@ from ..recipes.constants import (
     SUBSCRIBE_URL,
     SUBSCRIPTIONS_URL,
 )
-from ..recipes.models import (
+from recipes.models import (
     Favorite,
     Ingredient,
     Recipe,

@@ -2,7 +2,7 @@ from django.core.validators import MinValueValidator
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
-from ..recipes.constants import (
+from recipes.constants import (
     AVATAR_FIELD_NAME,
     FAVORITE_FOR_SERIALIZER,
     IMAGE_FIELD_NAME,
@@ -10,7 +10,7 @@ from ..recipes.constants import (
     MIN_INGREDIENT_AMOUNT,
     SHOPPING_CART_FOR_SERIALIZER,
 )
-from ..recipes.models import (
+from recipes.models import (
     Favorite,
     Ingredient,
     IngredientRecipe,
