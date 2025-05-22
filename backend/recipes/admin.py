@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from recipes.models import (Favorite, Ingredient, Recipe, ShortLink, Subscribe,
-                            Tag, User)
+                            Tag, User, IngredientRecipe)
 
 
 @admin.register(User)
@@ -34,8 +34,10 @@ class IngredientAdmin(admin.ModelAdmin):
     empty_value_display = '-пусто-'
 
 
-class IngredientInline(admin.StackedInline):
-    model = Ingredient
+class IngredientRecipeInline(admin.StackedInline):
+    model = IngredientRecipe
+    extra = 1
+    min_num = 1
 
 
 @admin.register(Recipe)
@@ -47,7 +49,7 @@ class RecipeAdmin(admin.ModelAdmin):
         'favorites_count',
     )
     inlines = (
-        IngredientInline,
+        IngredientRecipe,
     )
     search_fields = ('name', 'author__username', 'author__email')
     list_filter = ('tags',)
