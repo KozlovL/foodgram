@@ -55,3 +55,19 @@ class RecipeFilter(filter.FilterSet):
         fields = {
             'author': ('exact',),
         }
+
+
+def get_is_in_special_list(object, user, model, is_recipe):
+    if is_recipe:
+        return user.is_authenticated and (
+            model.objects.filter(
+                user=user,
+                recipe=object,
+            )
+        ).exists()
+    return user.is_authenticated and (
+        model.objects.filter(
+            user=user,
+            subscribed_user=object,
+        )
+    ).exists()

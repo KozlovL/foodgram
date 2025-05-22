@@ -1,13 +1,14 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from recipes.constants import (AVATAR_IMAGE_FOLDER, EMAIL_MAX_LENGTH,
                                MEASUREMENT_UNIT_MAX_LENGTH, MIN_COOKING_TIME,
                                NAME_MAX_LENGTH, NAME_STR_WIDTH,
                                RECIPE_IMAGE_FOLDER, SHORT_LINK_MAX_LENGTH,
-                               TAG_SLUG_MAX_LENGTH, USERNAME_STR_WIDTH)
+                               TAG_SLUG_MAX_LENGTH, USERNAME_STR_WIDTH, MIN_INGREDIENT_AMOUNT)
 
 
 class User(AbstractUser):
@@ -152,7 +153,7 @@ class IngredientRecipe(models.Model):
         verbose_name='Рецепт'
     )
     amount = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(MIN_COOKING_TIME)],
+        validators=[MinValueValidator(MIN_INGREDIENT_AMOUNT)],
         verbose_name='Количество',
     )
 
@@ -214,6 +215,20 @@ class Subscribe(models.Model):
     class Meta:
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'subscribed_user'],
+                name='unique_subscription'
+            ),
+        ]
+
+    def clean(self):
+        if self.user == self.subscribed_user:
+            raise ValidationError('Нельзя подписаться на самого себя.')
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return (
@@ -222,21 +237,7 @@ class Subscribe(models.Model):
         )
 
 
-class SpecialListRecipeModel(models.Model):
-
-    class Meta:
-        abstract = True
-        verbose_name = 'Специальный список с полем "рецепт"'
-        verbose_name_plural = 'Специальные списки с полем "рецепт"'
-
-    def __str__(self):
-        return (
-            f'Пользователь - {self.user}. '
-            f'Рецепт - {self.recipe}.'
-        )
-
-
-class Favorite(SpecialListRecipeModel):
+class Favorite(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
@@ -251,12 +252,24 @@ class Favorite(SpecialListRecipeModel):
         verbose_name='Пользователь'
     )
 
-    class Meta(SpecialListRecipeModel.Meta):
+    class Meta:
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранные'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_favorite'
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f'Пользователь - {self.user}. '
+            f'Рецепт - {self.recipe}.'
+        )
 
 
-class ShoppingCart(SpecialListRecipeModel):
+class ShoppingCart(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
@@ -271,6 +284,18 @@ class ShoppingCart(SpecialListRecipeModel):
         verbose_name='Пользователь'
     )
 
-    class Meta(SpecialListRecipeModel.Meta):
+    class Meta:
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_shopping_cart'
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f'Пользователь - {self.user}. '
+            f'Рецепт - {self.recipe}.'
+        )

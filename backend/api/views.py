@@ -20,8 +20,9 @@ from recipes.constants import (AVATAR_URL, DOWNLOAD_SHOPPING_CART_URL,
                                SET_PASSWORD_URL, SHOPPING_CART_FILENAME,
                                SHOPPING_CART_URL, SHORT_LINK_MAX_LENGTH,
                                SUBSCRIBE_URL, SUBSCRIPTIONS_URL)
-from recipes.models import Ingredient, Recipe, ShortLink, Tag, User
-from rest_framework import status, viewsets
+from recipes.models import (Favorite, Ingredient, Recipe, ShoppingCart,
+                            ShortLink, Tag, User)
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import (AllowAny, IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
@@ -80,16 +81,16 @@ class UserViewSet(viewsets.ModelViewSet):
             pk=id
         )
         user = request.user
-        serializer = SubscribeSerializer(
-            data={
-                'user': user.id,
-                'subscribed_user': subscribed_user.id
-            },
-            context=self.get_serializer_context(),
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
         if request.method == 'POST':
+            serializer = SubscribeSerializer(
+                data={
+                    'user': user.id,
+                    'subscribed_user': subscribed_user.id
+                },
+                context=self.get_serializer_context(),
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
             queryset = self.get_recipes_annotated_queryset(
                 queryset=self.get_queryset().filter(id=subscribed_user.id)
             )
@@ -101,6 +102,14 @@ class UserViewSet(viewsets.ModelViewSet):
                 serializer.data,
                 status=status.HTTP_201_CREATED
             )
+        subscription = user.subscriptions.filter(
+            subscribed_user=subscribed_user
+        )
+        if not subscription.exists():
+            raise serializers.ValidationError(
+                'Пользователь отсутствует в подписках'
+            )
+        subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -158,17 +167,13 @@ class UserViewSet(viewsets.ModelViewSet):
                 data=request.data,
                 context=self.get_serializer_context()
             )
-            if serializer.is_valid(raise_exception=True):
-                serializer.save()
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_200_OK
-                )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
             return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
+                serializer.data,
+                status=status.HTTP_200_OK
             )
-        user.avatar.delete(save=True)
+        user.avatar.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -268,22 +273,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
         request,
         recipe_id,
         serializer,
+        model,
     ):
         recipe = get_object_or_404(
             self.get_queryset(),
             pk=recipe_id
         )
         user = request.user
-        serializer = serializer(
-            data={
-                'user': user.id,
-                'recipe': recipe.id,
-            },
-            context=self.get_serializer_context()
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
         if request.method == 'POST':
+            serializer = serializer(
+                data={
+                    'user': user.id,
+                    'recipe': recipe.id,
+                },
+                context=self.get_serializer_context()
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
             serializer = RecipeFavoriteAndShoppingCartSerializer(
                 recipe,
                 context=self.get_serializer_context()
@@ -292,6 +298,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 serializer.data,
                 status=status.HTTP_201_CREATED,
             )
+        model_object = model.objects.filter(
+            recipe_id=recipe.id,
+            user_id=user.id
+        )
+        if not model_object.exists():
+            raise serializers.ValidationError(
+                'Объект отсутствует'
+            )
+        model_object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -305,6 +320,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             request=request,
             recipe_id=id,
             serializer=ShoppingCartSerializer,
+            model=ShoppingCart
         )
 
     @action(
@@ -317,6 +333,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             request=request,
             recipe_id=id,
             serializer=FavoriteSerializer,
+            model=Favorite
         )
 
     @action(
