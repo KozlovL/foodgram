@@ -6,9 +6,10 @@ from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from recipes.constants import (AVATAR_IMAGE_FOLDER, EMAIL_MAX_LENGTH,
                                MEASUREMENT_UNIT_MAX_LENGTH, MIN_COOKING_TIME,
-                               NAME_MAX_LENGTH, NAME_STR_WIDTH,
-                               RECIPE_IMAGE_FOLDER, SHORT_LINK_MAX_LENGTH,
-                               TAG_SLUG_MAX_LENGTH, USERNAME_STR_WIDTH, MIN_INGREDIENT_AMOUNT)
+                               MIN_INGREDIENT_AMOUNT, NAME_MAX_LENGTH,
+                               NAME_STR_WIDTH, RECIPE_IMAGE_FOLDER,
+                               SHORT_LINK_MAX_LENGTH, TAG_SLUG_MAX_LENGTH,
+                               USERNAME_STR_WIDTH)
 
 
 class User(AbstractUser):
