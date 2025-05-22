@@ -1,51 +1,31 @@
 import hashlib
 
+from api.filters import NameSearchFilter, RecipeFilter
+from api.pagination import PageLimitPagination
+from api.permissions import IsAuthor
+from api.serializers import (AvatarSerializer, FavoriteSerializer,
+                             IngredientSerializer, PasswordSerializer,
+                             RecipeFavoriteAndShoppingCartSerializer,
+                             RecipeReadSerializer, RecipeWriteSerializer,
+                             ShoppingCartSerializer, SubscribeSerializer,
+                             SubscribeUserSerializer, TagSerializer,
+                             UserReadSerializer, UserWriteSerializer)
 from django.conf import settings
 from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
+from recipes.constants import (AVATAR_URL, DOWNLOAD_SHOPPING_CART_URL,
+                               FAVORITE_URL, GET_LINK_URL, SELF_URL,
+                               SET_PASSWORD_URL, SHOPPING_CART_FILENAME,
+                               SHOPPING_CART_URL, SHORT_LINK_MAX_LENGTH,
+                               SUBSCRIBE_URL, SUBSCRIPTIONS_URL)
+from recipes.models import Ingredient, Recipe, ShortLink, Tag, User
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import (
-    AllowAny,
-    IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
-)
+from rest_framework.permissions import (AllowAny, IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
-
-from .filters import NameSearchFilter, RecipeFilter
-from .pagination import PageLimitPagination
-from .permissions import IsAuthor
-from .serializers import (
-    AvatarSerializer,
-    FavoriteSerializer,
-    IngredientSerializer,
-    PasswordSerializer,
-    RecipeFavoriteAndShoppingCartSerializer,
-    RecipeReadSerializer,
-    RecipeWriteSerializer,
-    ShoppingCartSerializer,
-    SubscribeSerializer,
-    SubscribeUserSerializer,
-    TagSerializer,
-    UserReadSerializer,
-    UserWriteSerializer,
-)
-from recipes.constants import (
-    AVATAR_URL,
-    DOWNLOAD_SHOPPING_CART_URL,
-    FAVORITE_URL,
-    GET_LINK_URL,
-    SELF_URL,
-    SET_PASSWORD_URL,
-    SHOPPING_CART_FILENAME,
-    SHOPPING_CART_URL,
-    SHORT_LINK_MAX_LENGTH,
-    SUBSCRIBE_URL,
-    SUBSCRIPTIONS_URL,
-)
-from recipes.models import Ingredient, Recipe, ShortLink, Tag, User
 
 
 def short_link_redirect(request, code):
