@@ -5,7 +5,16 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
-from recipes.constants import (
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+)
+from rest_framework.response import Response
+
+from ..recipes.constants import (
     AVATAR_URL,
     DOWNLOAD_SHOPPING_CART_URL,
     FAVORITE_URL,
@@ -18,16 +27,7 @@ from recipes.constants import (
     SUBSCRIBE_URL,
     SUBSCRIPTIONS_URL,
 )
-from recipes.models import Ingredient, Recipe, ShortLink, Tag, User
-from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import (
-    AllowAny,
-    IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
-)
-from rest_framework.response import Response
-
+from ..recipes.models import Ingredient, Recipe, ShortLink, Tag, User
 from .filters import NameSearchFilter, RecipeFilter
 from .pagination import PageLimitPagination
 from .permissions import IsAuthor

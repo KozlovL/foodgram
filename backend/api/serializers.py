@@ -1,10 +1,23 @@
 from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
-from recipes.constants import (AVATAR_FIELD_NAME, FAVORITE_FOR_SERIALIZER,
-                               IMAGE_FIELD_NAME, SHOPPING_CART_FOR_SERIALIZER)
-from recipes.models import (Favorite, Ingredient, IngredientRecipe, Recipe,
-                            ShoppingCart, Subscribe, Tag, User)
 from rest_framework import serializers
+
+from ..recipes.constants import (
+    AVATAR_FIELD_NAME,
+    FAVORITE_FOR_SERIALIZER,
+    IMAGE_FIELD_NAME,
+    SHOPPING_CART_FOR_SERIALIZER,
+)
+from ..recipes.models import (
+    Favorite,
+    Ingredient,
+    IngredientRecipe,
+    Recipe,
+    ShoppingCart,
+    Subscribe,
+    Tag,
+    User,
+)
 
 
 def get_is_in_special_list(object, user, model, is_recipe):
