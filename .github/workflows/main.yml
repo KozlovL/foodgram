@@ -58,7 +58,6 @@ jobs:
         with:
           context: ./backend/
           push: true
-          no-cache: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest
 
   build_frontend_and_push_to_docker_hub:
