@@ -1,13 +1,26 @@
-from api.filters import get_is_in_special_list
 from django.core.validators import MinValueValidator
 from drf_extra_fields.fields import Base64ImageField
-from recipes.constants import (AVATAR_FIELD_NAME, FAVORITE_FOR_SERIALIZER,
-                               IMAGE_FIELD_NAME, MIN_COOKING_TIME,
-                               MIN_INGREDIENT_AMOUNT,
-                               SHOPPING_CART_FOR_SERIALIZER)
-from recipes.models import (Favorite, Ingredient, IngredientRecipe, Recipe,
-                            ShoppingCart, Subscribe, Tag, User)
 from rest_framework import serializers
+
+from ..recipes.constants import (
+    AVATAR_FIELD_NAME,
+    FAVORITE_FOR_SERIALIZER,
+    IMAGE_FIELD_NAME,
+    MIN_COOKING_TIME,
+    MIN_INGREDIENT_AMOUNT,
+    SHOPPING_CART_FOR_SERIALIZER,
+)
+from ..recipes.models import (
+    Favorite,
+    Ingredient,
+    IngredientRecipe,
+    Recipe,
+    ShoppingCart,
+    Subscribe,
+    Tag,
+    User,
+)
+from .filters import get_is_in_special_list
 
 
 def absolute_url_representation(representation, serializer, image_name):
