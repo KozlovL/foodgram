@@ -350,7 +350,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'ingredients': 'Нужно указать хотя бы один ингредиент'
             })
-        ingredient_ids = [ingredient.id for ingredient in ingredients]
+        ingredient_ids = [ingredient['id'] for ingredient in ingredients]
         if len(ingredient_ids) != len(set(ingredient_ids)):
             raise serializers.ValidationError({
                 'ingredients': 'Ингредиенты не должны повторяться'
