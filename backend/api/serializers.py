@@ -352,16 +352,16 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             })
         ingredient_ids = [ingredient.id for ingredient in ingredients]
         if len(ingredient_ids) != len(set(ingredient_ids)):
-                raise serializers.ValidationError({
-                    'ingredients': 'Ингредиенты не должны повторяться'
-                })
+            raise serializers.ValidationError({
+                'ingredients': 'Ингредиенты не должны повторяться'
+            })
         if not image:
             raise serializers.ValidationError({
                 'image': 'Поле image обязательно'
             })
         return data
 
-    def create_or_update(self, tags, ingredients):
+    def create_or_update(self, tags, ingredients, recipe):
         recipe.tags.set(tags)
         recipe.ingredients.clear()
         IngredientRecipe.objects.bulk_create(
@@ -377,13 +377,13 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('recipe_ingredients')
         recipe = Recipe.objects.create(**validated_data)
-        return self.create_or_update(tags, ingredients)
+        return self.create_or_update(tags, ingredients, recipe)
 
     def update(self, recipe, validated_data):
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('recipe_ingredients')
         super().update(recipe, validated_data)
-        return self.create_or_update(tags, ingredients)
+        return self.create_or_update(tags, ingredients, recipe)
 
     def to_representation(self, recipe):
         return RecipeReadSerializer(
