@@ -15,6 +15,10 @@ class RecipeFilter(filter.FilterSet):
         queryset=Tag.objects.all(),
         method='filter_tags'
     )
+    is_favorited = filter.NumberFilter(method='filter_favorited')
+    is_in_shopping_cart = filter.NumberFilter(
+        method='filter_is_in_shopping_cart'
+    )
 
     class Meta:
         model = Recipe
@@ -27,8 +31,6 @@ class RecipeFilter(filter.FilterSet):
             return queryset
         return queryset.filter(tags__in=value).distinct()
 
-    is_favorited = filter.NumberFilter(method='filter_favorited')
-
     def filter_favorited(self, queryset, name, value):
         request = self.request
         is_favorited = request.GET.get('is_favorited')
@@ -40,10 +42,6 @@ class RecipeFilter(filter.FilterSet):
             flat=True
         )
         return queryset.filter(id__in=favorite_recipe_ids)
-
-    is_in_shopping_cart = filter.NumberFilter(
-        method='filter_is_in_shopping_cart'
-    )
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
         request = self.request
