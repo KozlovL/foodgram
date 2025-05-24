@@ -30,8 +30,8 @@ from recipes.constants import (
 from recipes.models import (
     Favorite,
     Ingredient,
+    IngredientRecipe,
     Recipe,
-    RecipeIngredients,
     ShoppingCart,
     ShortLink,
     Tag,
@@ -365,7 +365,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def download_shopping_cart(self, request):
         ingredients = (
-            RecipeIngredients.objects.filter(
+            IngredientRecipe.objects.filter(
                 recipe__shopping_cart__user=request.user,
             ).values(
                 'ingredient__name',
