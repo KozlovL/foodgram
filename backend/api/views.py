@@ -1,7 +1,7 @@
 import hashlib
 
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
@@ -31,6 +31,7 @@ from recipes.models import (
     Favorite,
     Ingredient,
     Recipe,
+    RecipeIngredients,
     ShoppingCart,
     ShortLink,
     Tag,
@@ -131,12 +132,11 @@ class UserViewSet(viewsets.ModelViewSet):
             )
         subscription = user.subscriptions.filter(
             subscribed_user=subscribed_user
-        )
-        if not subscription.exists():
+        ).delete()
+        if not subscription:
             raise serializers.ValidationError(
                 'Пользователь отсутствует в подписках'
             )
-        subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -156,16 +156,11 @@ class UserViewSet(viewsets.ModelViewSet):
         )
         page = self.paginate_queryset(queryset)
         serializer = SubscribeUserSerializer(
-            page if page is not None else queryset,
+            page,
             many=True,
             context=self.get_serializer_context(),
         )
-        if page:
-            return self.get_paginated_response(serializer.data)
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
+        return self.get_paginated_response(serializer.data)
 
     @action(
         detail=False,
@@ -328,12 +323,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
         model_object = model.objects.filter(
             recipe_id=recipe.id,
             user_id=user.id
-        )
-        if not model_object.exists():
+        ).delete()
+        if not model_object:
             raise serializers.ValidationError(
                 'Объект отсутствует'
             )
-        model_object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -370,30 +364,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def download_shopping_cart(self, request):
-        recipe_ids = request.user.shopping_cart.all().values_list(
-            'recipe',
-            flat=True
+        ingredients = (
+            RecipeIngredients.objects.filter(
+                recipe__shopping_cart__user=request.user,
+            ).values(
+                'ingredient__name',
+                'ingredient__measurement_unit',
+            ).annotate(
+                total_amount=Sum('amount')
+            ).order_by(
+                *Ingredient._meta.ordering
+            )
         )
-        recipe_queryset = Recipe.objects.filter(id__in=recipe_ids)
-        shopping_cart = dict()
-        for recipe in recipe_queryset:
-            for ingredient_recipe in recipe.recipe_ingredients.all():
-                name = ingredient_recipe.ingredient.name
-                if name not in shopping_cart.keys():
-                    shopping_cart[name] = {
-                        'Количество': 0,
-                        'Единица измерения': (
-                            ingredient_recipe.ingredient.measurement_unit
-                        )
-                    }
-                shopping_cart[name]['Количество'] += (
-                    ingredient_recipe.amount
-                )
         shop_list = ''
-        for name, value in shopping_cart.items():
-            count = value['Количество']
-            measurement_unit = value['Единица измерения']
-            shop_list += f'{name}: {count} {measurement_unit}\n'
+        for ingredient in ingredients:
+            name = ingredient['ingredient__name']
+            amount = ingredient['total_amount']
+            measurement_unit = ingredient['ingredient__measurement_unit']
+            shop_list += f'{name}: {amount} {measurement_unit}\n'
         response = HttpResponse(shop_list, content_type='text/plain')
         response['Content-Disposition'] = (
             'attachment;'

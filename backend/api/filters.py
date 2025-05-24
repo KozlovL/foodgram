@@ -16,6 +16,12 @@ class RecipeFilter(filter.FilterSet):
         method='filter_tags'
     )
 
+    class Meta:
+        model = Recipe
+        fields = {
+            'author': ('exact',),
+        }
+
     def filter_tags(self, queryset, name, value):
         if not value:
             return queryset
@@ -50,12 +56,6 @@ class RecipeFilter(filter.FilterSet):
             flat=True
         )
         return queryset.filter(id__in=in_shopping_cart_recipe_ids)
-
-    class Meta:
-        model = Recipe
-        fields = {
-            'author': ('exact',),
-        }
 
 
 def get_is_in_special_list(object, user, model, is_recipe):

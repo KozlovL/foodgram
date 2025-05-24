@@ -252,14 +252,12 @@ class RecipeReadSerializer(
     ToRepresentationImageSerializer,
 ):
     image_name = IMAGE_FIELD_NAME
-    author = UserReadSerializer(read_only=True)
+    author = UserReadSerializer()
     tags = TagSerializer(
         many=True,
-        read_only=True
     )
     ingredients = IngredientRecipeReadSerializer(
         many=True,
-        read_only=True,
         source='recipe_ingredients'
     )
     image = Base64ImageField()
@@ -269,6 +267,18 @@ class RecipeReadSerializer(
     class Meta:
         model = Recipe
         fields = (
+            'id',
+            'tags',
+            'author',
+            'ingredients',
+            'is_favorited',
+            'is_in_shopping_cart',
+            'name',
+            'image',
+            'text',
+            'cooking_time',
+        )
+        read_only_fields = (
             'id',
             'tags',
             'author',
@@ -340,49 +350,40 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'ingredients': 'Нужно указать хотя бы один ингредиент'
             })
-        ingredient_ids = set()
-        for item in ingredients:
-            ing_id = item.get('id')
-            if ing_id in ingredient_ids:
+        ingredient_ids = [ingredient.id for ingredient in ingredients]
+        if len(ingredient_ids) != len(set(ingredient_ids)):
                 raise serializers.ValidationError({
                     'ingredients': 'Ингредиенты не должны повторяться'
                 })
-            ingredient_ids.add(ing_id)
         if not image:
             raise serializers.ValidationError({
                 'image': 'Поле image обязательно'
             })
         return data
 
-    def create_or_update(self, validated_data, recipe=None):
-        tags = validated_data.pop('tags')
-        ingredients = validated_data.pop('recipe_ingredients')
-        if recipe:
-            super().update(recipe, validated_data)
-            recipe.tags.set(tags)
-            recipe.ingredients.clear()
-        else:
-            recipe = Recipe.objects.create(**validated_data)
-        new_ingredients = [
+    def create_or_update(self, tags, ingredients):
+        recipe.tags.set(tags)
+        recipe.ingredients.clear()
+        IngredientRecipe.objects.bulk_create(
             IngredientRecipe(
                 recipe_id=recipe.id,
                 ingredient_id=ingredient_dict['id'].id,
                 amount=ingredient_dict['amount']
             ) for ingredient_dict in ingredients
-        ]
-        IngredientRecipe.objects.bulk_create(
-            new_ingredients
         )
         return recipe
 
     def create(self, validated_data):
-        return self.create_or_update(validated_data=validated_data)
+        tags = validated_data.pop('tags')
+        ingredients = validated_data.pop('recipe_ingredients')
+        recipe = Recipe.objects.create(**validated_data)
+        return self.create_or_update(tags, ingredients)
 
     def update(self, recipe, validated_data):
-        return self.create_or_update(
-            validated_data=validated_data,
-            recipe=recipe,
-        )
+        tags = validated_data.pop('tags')
+        ingredients = validated_data.pop('recipe_ingredients')
+        super().update(recipe, validated_data)
+        return self.create_or_update(tags, ingredients)
 
     def to_representation(self, recipe):
         return RecipeReadSerializer(
