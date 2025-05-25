@@ -382,6 +382,8 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     def update(self, recipe, validated_data):
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('recipe_ingredients')
+        if 'image' not in self.initial_data:
+            validated_data.pop('image', None)
         super().update(recipe, validated_data)
         return self.create_or_update(tags, ingredients, recipe)
 
