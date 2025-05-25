@@ -355,7 +355,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'ingredients': 'Ингредиенты не должны повторяться'
             })
-        if not image:
+        if image not in self.initial_data:
             raise serializers.ValidationError({
                 'image': 'Поле image обязательно'
             })
@@ -382,8 +382,6 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     def update(self, recipe, validated_data):
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('recipe_ingredients')
-        if 'image' not in self.initial_data:
-            validated_data.pop('image', None)
         super().update(recipe, validated_data)
         return self.create_or_update(tags, ingredients, recipe)
 
