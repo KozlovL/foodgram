@@ -360,6 +360,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'image': 'Поле image обязательно'
                 })
+            data['image'] = self.instance.image
         return data
 
     def create_or_update(self, tags, ingredients, recipe):
